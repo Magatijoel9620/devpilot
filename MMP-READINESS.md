@@ -56,3 +56,12 @@ This prevents the old starter dataset from being accidentally reintroduced throu
 ## Database safety
 
 Do not wipe the database and do not rerun migration `0001` against an existing live database. Migration `0002` is designed to add revision-based concurrency without rewriting existing snapshot data. Existing snapshots should remain untouched by this source-only package.
+
+
+## Startup performance patch
+
+- Replaced startup/workspace-load `auth.getUser()` calls with `auth.getSession()` to avoid redundant auth verification network round trips in client startup. Snapshot access remains protected by RLS and the save RPC still derives the owner from `auth.uid()`.
+- Removed the extra `getUser()` request before every autosave; the RPC validates the current authenticated request and enforces revision checks.
+- Prevented a just-hydrated cloud snapshot from being immediately written back as if it were a user edit.
+- No database migration is required for these changes.
+- Re-run typecheck, lint, production build, and cold/warm launch checks before production deployment.

@@ -203,6 +203,7 @@ export default function DevPilot() {
     "loading" | "saving" | "synced" | "error" | "conflict"
   >("loading");
   const cloudRevisionRef = useRef<number | null>(null);
+  const skipNextAutosaveRef = useRef(false);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const syncBlockedRef = useRef(false);
   const [authEmail, setAuthEmail] = useState("");
@@ -285,17 +286,24 @@ export default function DevPilot() {
       return;
     }
     let alive = true;
+    // Read the persisted browser session first. getUser() makes a network
+    // request; getSession() avoids an unnecessary round trip during startup.
+    // Supabase RLS and the snapshot RPC remain responsible for authorization.
     supabase.auth
-      .getUser()
-      .then(({ data: { user }, error }) => {
+      .getSession()
+      .then(({ data: { session }, error }) => {
         if (!alive) return;
         if (error) {
           setUserEmail(null);
           setAuthMessage(
-            "Your session could not be verified. Please sign in again.",
+            "Your session could not be loaded. Please sign in again.",
           );
         } else
-          setUserEmail(user ? (user.email ?? "Authenticated account") : null);
+          setUserEmail(
+            session?.user
+              ? (session.user.email ?? "Authenticated account")
+              : null,
+          );
         setAuthChecked(true);
       })
       .catch(() => {
@@ -339,15 +347,20 @@ export default function DevPilot() {
     setCloudReady(false);
     setCloudState("loading");
     syncBlockedRef.current = false;
+    skipNextAutosaveRef.current = false;
     cloudRevisionRef.current = null;
     (async () => {
       try {
+        // Use the locally persisted session to identify the workspace. The
+        // query is still protected by workspace_snapshots RLS, so this is not
+        // a substitute for server-side authorization.
         const {
-          data: { user },
-          error: userError,
-        } = await supabase!.auth.getUser();
-        if (userError) throw userError;
-        if (!user) throw new Error("No authenticated user");
+          data: { session },
+          error: sessionError,
+        } = await supabase!.auth.getSession();
+        if (sessionError) throw sessionError;
+        const user = session?.user;
+        if (!user) throw new Error("No authenticated session. Please sign in again.");
         const { data: snapshot, error } = await supabase!
           .from("workspace_snapshots")
           .select("data,revision")
@@ -396,6 +409,9 @@ export default function DevPilot() {
           cloudRevisionRef.current = createdRow.revision;
         }
         if (!cancelled) {
+          // Hydrating the cloud snapshot is not a user edit. Do not immediately
+          // write the same workspace back just because loading finished.
+          skipNextAutosaveRef.current = true;
           setCloudReady(true);
           setCloudState("synced");
         }
@@ -424,6 +440,10 @@ export default function DevPilot() {
       syncBlockedRef.current
     )
       return;
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
     let cancelled = false;
     const snapshotToSave = data;
     const timer = window.setTimeout(() => {
@@ -435,15 +455,9 @@ export default function DevPilot() {
         .then(async () => {
           if (syncBlockedRef.current) return;
           try {
-            const {
-              data: { user },
-              error: userError,
-            } = await supabase!.auth.getUser();
-            if (userError) throw userError;
-            if (!user)
-              throw new Error(
-                "Your session expired. Sign in again to sync your workspace.",
-              );
+            // The RPC derives the owner from auth.uid() and validates the
+            // current token. Avoid a separate getUser() network request for
+            // every autosave; the database remains the authorization boundary.
             const { data: result, error } = await supabase!.rpc(
               "save_workspace_snapshot",
               {

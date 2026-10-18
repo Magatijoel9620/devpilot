@@ -235,3 +235,12 @@ supabase/
 ## Development principle
 
 Ship the useful core, test the actual app, and patch concrete issues in short iterations. Avoid adding complexity until real usage reveals the need. Before every significant schema or sync change, create a backup and test against a non-production Supabase project where possible.
+
+
+## Startup and cloud-sync performance (MMP patch)
+
+The startup path now reads the persisted Supabase browser session with `getSession()` rather than calling `getUser()` for a separate auth-network round trip. Workspace loading still queries the signed-in owner's snapshot and remains protected by Supabase Row Level Security. Autosaves rely on the `save_workspace_snapshot` RPC, which derives ownership from `auth.uid()` and performs revision checks; they no longer make an additional `getUser()` request before each save.
+
+After loading a snapshot, DevPilot no longer immediately autosaves the same data just because cloud loading completed. Real edits still use the existing debounced, revision-checked cloud save. Workspace content remains cloud-first; this patch does not introduce local storage caching or weaken account isolation.
+
+**Validation note:** run `npm ci`, `npm run typecheck`, `npm run lint`, and `npm run build` in a normal network-enabled project environment before deploying. The packaging environment could not complete dependency installation, so these checks were not certified by this patch.

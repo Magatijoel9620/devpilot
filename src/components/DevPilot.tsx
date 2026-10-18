@@ -1114,7 +1114,7 @@ export default function DevPilot() {
           <div className="auth-security-note">
             <ShieldCheck size={15} />
             <span>
-              You're changing the password for the authenticated account shown
+              You&apos;re changing the password for the authenticated account shown
               by the recovery link.
             </span>
           </div>
@@ -2038,7 +2038,7 @@ export default function DevPilot() {
                   <h2>Close the loop</h2>
                   <p>
                     Give your future self a clean handover. Review what moved,
-                    what didn't, and what comes next.
+                    what didn&apos;t, and what comes next.
                   </p>
                   <button
                     className="btn btn-secondary btn-full"
@@ -3580,7 +3580,7 @@ export default function DevPilot() {
             }}
           >
             <label>
-              What's on your mind?
+              What&apos;s on your mind?
               <input
                 className="field large-field"
                 autoFocus

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
@@ -21,7 +22,6 @@ import {
   Gauge,
   Github,
   Inbox,
-  Layers3,
   ListTodo,
   LoaderCircle,
   LogIn,
@@ -59,7 +59,6 @@ import type {
   Stage,
   Task,
   TaskStatus,
-  WorkSession,
 } from "@/lib/types";
 
 type View =
@@ -415,7 +414,6 @@ export default function DevPilot() {
       cancelled = true;
     };
     // Load once for each signed-in account. data is intentionally not a dependency here.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, userEmail]);
   useEffect(() => {
     if (
@@ -522,13 +520,18 @@ export default function DevPilot() {
     }
   }, [toast]);
 
-  const plan: DailyPlan = data.plans[today()] ?? {
-    date: today(),
-    availableMinutes: availableHours * 60,
-    bufferMinutes,
-    taskIds: [],
-    estimates: {},
-  };
+  const plan: DailyPlan = useMemo(() => {
+    const date = today();
+    return (
+      data.plans[date] ?? {
+        date,
+        availableMinutes: availableHours * 60,
+        bufferMinutes,
+        taskIds: [],
+        estimates: {},
+      }
+    );
+  }, [availableHours, bufferMinutes, data.plans]);
   const recs = useMemo(() => recommendTasks(data, plan), [data, plan]);
   const activeSession = data.sessions.find((s) => !s.endedAt);
   const selected = data.tasks.find((t) => t.id === selectedTask) ?? null;
@@ -1004,7 +1007,7 @@ export default function DevPilot() {
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card">
           <div className="auth-brand-lockup">
-            <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
             <div>
               <span className="auth-brand">DEVPILOT</span>
               <span className="auth-brand-sub">CLOUD WORKSPACE REQUIRED</span>
@@ -1038,7 +1041,7 @@ export default function DevPilot() {
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card">
           <div className="auth-brand-lockup">
-            <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
             <div>
               <span className="auth-brand">DEVPILOT</span>
               <span className="auth-brand-sub">ACCOUNT SECURITY</span>
@@ -1126,7 +1129,7 @@ export default function DevPilot() {
     return (
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card auth-loading">
-          <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+          <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
           <span className="auth-brand">DEVPILOT</span>
           <LoaderCircle size={22} className="spin" />
           <p>Verifying your session securely…</p>
@@ -1142,7 +1145,7 @@ export default function DevPilot() {
     return (
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card auth-loading">
-          <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+          <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
           <span className="auth-brand">DEVPILOT</span>
           <LoaderCircle size={22} className="spin" />
           <h2>Loading your private workspace…</h2>
@@ -1163,7 +1166,7 @@ export default function DevPilot() {
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card">
           <div className="auth-brand-lockup">
-            <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
             <div>
               <span className="auth-brand">DEVPILOT</span>
               <span className="auth-brand-sub">PRIVATE WORKSPACE</span>
@@ -1196,7 +1199,7 @@ export default function DevPilot() {
       <main className={cx("auth-shell", dark ? "theme-dark" : "theme-light")}>
         <section className="auth-card">
           <div className="auth-brand-lockup">
-            <img src="/HG.png" alt="Hempon Group" className="auth-logo" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} className="auth-logo" />
             <div>
               <span className="auth-brand">DEVPILOT</span>
               <span className="auth-brand-sub">PERSONAL COMMAND CENTRE</span>
@@ -1361,7 +1364,7 @@ export default function DevPilot() {
       <aside className={cx("sidebar", mobileNav && "sidebar-open")}>
         <div className="brand-row">
           <div className="brand-mark brand-logo">
-            <img src="/HG.png" alt="Hempon Group" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} />
           </div>
           <div className="brand-copy">
             <strong>DevPilot</strong>
@@ -1521,7 +1524,7 @@ export default function DevPilot() {
               <Menu size={19} />
             </button>
             <div className="mobile-brand">
-              <img src="/HG.png" alt="" />
+              <Image src="/HG.png" alt="" width={1254} height={1254} />
               <strong>DevPilot</strong>
             </div>
             <div className="breadcrumbs">
@@ -3166,7 +3169,7 @@ export default function DevPilot() {
               </div>
               <div className="about-footer">
                 <div className="brand-mark small-mark brand-logo">
-                  <img src="/HG.png" alt="Hempon Group" />
+                  <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} />
                 </div>
                 <span>DevPilot</span>
                 <span>·</span>
@@ -4013,7 +4016,7 @@ export default function DevPilot() {
       {!ready && (
         <div className="loading-cover">
           <div className="brand-mark brand-logo">
-            <img src="/HG.png" alt="Hempon Group" />
+            <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} />
           </div>
           <LoaderCircle size={20} className="spin" /> Preparing your workspace…
         </div>

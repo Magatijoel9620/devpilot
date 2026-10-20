@@ -15,6 +15,7 @@ This repository contains the cloud-backed DevPilot personal workspace (v0.2.0), 
 - **GitHub OAuth:** a Continue with GitHub button starts Supabase OAuth and returns to the app origin. GitHub provider credentials and allowed redirect URLs must be configured in Supabase before this option can work.
 - **Mobile top bar:** DevPilot name and Hempon Group mark remain visible on small screens alongside the mobile menu and account controls.
 - **Mobile navigation:** a fixed, safe-area-aware bottom navigation appears on small screens for Today, Inbox, Projects, Tasks and Settings.
+- **Mobile back navigation:** in-app view changes are tracked in browser history so Android/browser Back returns to the previous DevPilot view instead of immediately exiting the app. See `ROUTING-HARDENING.md` for verification steps.
 - **PWA shell:** the manifest, theme colours, logo icon and service-worker cache have been updated together.
 - **Documentation:** setup, authentication, deployment, data handling, verification and known limitations are described below.
 

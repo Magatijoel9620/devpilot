@@ -71,6 +71,20 @@ type View =
   | "memory"
   | "insights"
   | "settings";
+const VIEW_HISTORY_KEY = "__devpilot_view";
+const isView = (value: unknown): value is View =>
+  typeof value === "string" &&
+  [
+    "today",
+    "inbox",
+    "projects",
+    "tasks",
+    "calendar",
+    "releases",
+    "memory",
+    "insights",
+    "settings",
+  ].includes(value);
 const today = () => new Date().toISOString().slice(0, 10);
 const id = (prefix = "item") =>
   `${prefix}-${Math.random().toString(36).slice(2, 9)}-${Date.now().toString(36)}`;
@@ -176,6 +190,8 @@ export default function DevPilot() {
   const [data, setData] = useState<AppData>(getInitialData);
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>("today");
+  const routeHistoryReadyRef = useRef(false);
+  const skipRoutePushRef = useRef(false);
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -249,6 +265,56 @@ export default function DevPilot() {
       document.documentElement.dataset.theme = dark ? "dark" : "light";
     }
   }, [dark, ready]);
+  // Keep in-app views in browser history. On mobile/PWA, otherwise the OS Back
+  // action can leave the app because view changes only update React state.
+  useEffect(() => {
+    if (!ready) return;
+
+    const currentState = window.history.state ?? {};
+    if (!routeHistoryReadyRef.current) {
+      window.history.replaceState(
+        { ...currentState, [VIEW_HISTORY_KEY]: view },
+        "",
+        window.location.href,
+      );
+      routeHistoryReadyRef.current = true;
+      return;
+    }
+
+    if (skipRoutePushRef.current) {
+      skipRoutePushRef.current = false;
+      return;
+    }
+
+    if (currentState[VIEW_HISTORY_KEY] !== view) {
+      window.history.pushState(
+        { ...currentState, [VIEW_HISTORY_KEY]: view },
+        "",
+        window.location.href,
+      );
+    }
+  }, [view, ready]);
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const previousView = event.state?.[VIEW_HISTORY_KEY];
+      if (!isView(previousView)) return;
+      if (previousView === view) return;
+      skipRoutePushRef.current = true;
+      setView(previousView);
+      setMobileNav(false);
+      setQuery("");
+      setShowSearch(false);
+      setAvatarMenuOpen(false);
+      setShowCapture(false);
+      setShowProjectForm(false);
+      setShowReleaseForm(false);
+      setShowReview(false);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [view]);
   useEffect(() => {
     if (!ready || !cloudReady) return;
     setData((d) => {

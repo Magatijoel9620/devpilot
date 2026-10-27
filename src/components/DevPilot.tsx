@@ -1454,10 +1454,10 @@ export default function DevPilot() {
           </form>
           <div className="auth-security-note">
             <ShieldCheck size={15} />
-            <span>
-              Protected by Supabase Auth. Your workspace is available only after
-              authentication.
-            </span>
+           <span>
+  Your DevPilot workspace, priorities, and projects are securely accessible
+  only when you sign in.
+</span>
           </div>
         </section>
         <p className="auth-copyright">DEVPILOT · BUILT FOR FOCUSED WORK</p>

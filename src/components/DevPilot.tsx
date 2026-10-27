@@ -228,6 +228,8 @@ export default function DevPilot() {
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [toast, setToast] = useState("");
+  const [undoData, setUndoData] = useState<AppData | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [projectDraft, setProjectDraft] = useState({
     name: "",
     description: "",
@@ -624,6 +626,29 @@ export default function DevPilot() {
       ...d,
       tasks: d.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
     }));
+  const moveTask = (taskId: string, status: TaskStatus, beforeTaskId?: string) => {
+    setUndoData(data);
+    setData((current) => {
+      const moving = current.tasks.find((task) => task.id === taskId);
+      if (!moving) return current;
+      const remaining = current.tasks.filter((task) => task.id !== taskId);
+      const moved = { ...moving, status, completedAt: status === "done" ? (moving.completedAt ?? new Date().toISOString()) : undefined };
+      const targetIndex = beforeTaskId ? remaining.findIndex((task) => task.id === beforeTaskId && task.status === status) : -1;
+      if (targetIndex >= 0) remaining.splice(targetIndex, 0, moved);
+      else {
+        const lastInColumn = remaining.reduce((last, task, index) => task.status === status ? index + 1 : last, -1);
+        remaining.splice(lastInColumn < 0 ? remaining.length : lastInColumn, 0, moved);
+      }
+      return { ...current, tasks: remaining };
+    });
+    notify("Task moved · cloud save queued");
+  };
+  const undoLastChange = () => {
+    if (!undoData) return;
+    setData(undoData);
+    setUndoData(null);
+    notify("Last task move undone");
+  };
   const updateProject = (projectId: string, patch: Partial<Project>) =>
     setData((d) => ({
       ...d,
@@ -2441,11 +2466,35 @@ export default function DevPilot() {
                           <Plus size={14} />
                         </button>
                       </div>
-                      <div className="column-cards">
+                      <div
+                        className="column-cards"
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const movingId = dragTaskId || event.dataTransfer.getData("text/plain");
+                          if (movingId) moveTask(movingId, status);
+                          setDragTaskId(null);
+                        }}
+                      >
                         {tasks.map((t) => (
                           <button
-                            className="kanban-card"
+                            className={cx("kanban-card", dragTaskId === t.id && "is-dragging")}
                             key={t.id}
+                            draggable
+                            onDragStart={(event) => {
+                              setDragTaskId(t.id);
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", t.id);
+                            }}
+                            onDragEnd={() => setDragTaskId(null)}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const movingId = dragTaskId || event.dataTransfer.getData("text/plain");
+                              if (movingId && movingId !== t.id) moveTask(movingId, status, t.id);
+                              setDragTaskId(null);
+                            }}
                             onClick={() => setSelectedTask(t.id)}
                           >
                             <div className="kanban-card-top">
@@ -3288,6 +3337,13 @@ export default function DevPilot() {
         </footer>
       </section>
 
+      {undoData && (
+        <div className="undo-toast" role="status">
+          <span>Task move saved locally · undo available</span>
+          <button onClick={undoLastChange}>Undo <span>↶</span></button>
+          <button className="undo-dismiss" aria-label="Dismiss undo" onClick={() => setUndoData(null)}><X size={14}/></button>
+        </div>
+      )}
       {selected && (
         <div
           className="drawer-scrim"
@@ -3979,6 +4035,17 @@ export default function DevPilot() {
               <kbd>ESC</kbd>
             </div>
             <div className="command-results">
+              <div className="command-label">QUICK ACTIONS</div>
+              {[
+                { label: "Go to Daily Mission Control", icon: Target, action: () => setView("today") },
+                { label: "Open Kanban board", icon: FolderKanban, action: () => setView("tasks") },
+                { label: "View insights", icon: TrendingUp, action: () => setView("insights") },
+                { label: "Create a task", icon: Plus, action: () => { setCaptureStatus("todo"); setShowCapture(true); } },
+                { label: "Create a project", icon: FolderKanban, action: () => setShowProjectForm(true) },
+              ].filter((item) => !query || item.label.toLowerCase().includes(query.toLowerCase())).map((item) => {
+                const Icon = item.icon;
+                return <button key={item.label} className="command-result command-action-result" onClick={() => { item.action(); setShowSearch(false); setQuery(""); }}><Icon size={16}/><span>{item.label}</span><small>Action</small><ChevronRight size={14}/></button>;
+              })}
               <div className="command-label">TASKS</div>
               {data.tasks
                 .filter(

@@ -11,7 +11,7 @@ This repository contains the DevPilot MVP, built with Next.js, React, TypeScript
 - **Hempon Group identity:** `public/HG.png` is used in the sign-in screen, sidebar, loading state, footer and PWA install icon.
 - **Authentication gate:** when Supabase is configured, users must have a verified active session before the workspace renders. Sign-in and account creation are now first-class screens instead of being buried in Settings.
 - **Account recovery:** the sign-in screen supports password-reset email requests and the recovery callback supports setting a new password.
-- **Session handling:** auth state is checked on startup, auth events update the gate, sign-out returns to the sign-in screen, and a new account with no cloud snapshot starts from clean starter data rather than inheriting another account's browser cache.
+- **Session handling:** auth state is checked on startup, auth events update the gate, sign-out returns to the sign-in screen, and a new account with no cloud snapshot starts from an empty workspace rather than inheriting another account's browser cache or sample records.
 - **Mobile navigation:** a fixed, safe-area-aware bottom navigation appears on small screens for Today, Inbox, Projects, Tasks and Settings.
 - **PWA shell:** the manifest, theme colours, logo icon and service-worker cache have been updated together.
 - **Documentation:** setup, authentication, deployment, data handling, verification and known MVP limitations are described below.
@@ -41,7 +41,7 @@ This repository contains the DevPilot MVP, built with Next.js, React, TypeScript
 - Persistent dark/light appearance preference.
 - Configurable daily capacity and buffer.
 - JSON workspace export and import.
-- Starter-data reset for testing; export first if you need to preserve current data.
+- Workspace export/import for backup and portability; new accounts start empty.
 
 ### Navigation and installability
 - Responsive desktop sidebar.
@@ -120,7 +120,7 @@ Email confirmation may mean account creation does not sign the user in immediate
 - Email/password sign-in and sign-up are provided on the dedicated entry screen.
 - The password-reset flow sends a reset link and provides a screen for choosing the replacement password.
 - Sign-out returns to the entry screen and clears the in-memory workspace to avoid exposing one user's workspace to the next account in the same browser.
-- A newly created account with no cloud snapshot is seeded with starter data; it is not seeded from the browser's previously cached workspace.
+- A newly created account with no cloud snapshot starts with no projects, tasks, notes, releases, or sessions. It is not seeded from demo records or the browser's previously cached workspace.
 - Supabase Auth manages the browser session and token refresh. Database access still depends on RLS; the visual sign-in gate is not a substitute for database policies.
 
 **Important:** a Supabase-configured browser is authenticated mode. A deployment with empty Supabase variables is intentionally a local demo and has no server-side identity enforcement. Do not treat local demo mode as a private production deployment.

@@ -194,6 +194,12 @@ export default function DevPilot() {
   const skipRoutePushRef = useRef(false);
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [tasksExpanded, setTasksExpanded] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(today());
+  const [captureDueDate, setCaptureDueDate] = useState("");
   const [query, setQuery] = useState("");
   const [showCapture, setShowCapture] = useState(false);
   const [captureTitle, setCaptureTitle] = useState("");
@@ -695,8 +701,10 @@ export default function DevPilot() {
     if (!captureTitle.trim()) return;
     const t = addTask(captureTitle, captureProject || null, {
       status: captureStatus,
+      dueDate: captureDueDate,
     });
     setCaptureTitle("");
+    setCaptureDueDate("");
     setCaptureProject("");
     setCaptureStatus("inbox");
     setShowCapture(false);
@@ -1092,6 +1100,43 @@ export default function DevPilot() {
       t.dueDate &&
       t.dueDate < today(),
   );
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return [
+      ...Array.from({ length: firstWeekday }, () => null as number | null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+  }, [calendarMonth]);
+  const tasksByDueDate = useMemo(() => {
+    const grouped: Record<string, Task[]> = {};
+    data.tasks.forEach((task) => {
+      if (!task.dueDate || ["cancelled"].includes(task.status)) return;
+      (grouped[task.dueDate] ??= []).push(task);
+    });
+    return grouped;
+  }, [data.tasks]);
+  const selectedDateTasks = tasksByDueDate[calendarSelectedDate] ?? [];
+  const openTasks = data.tasks.filter((t) => !["done", "cancelled"].includes(t.status));
+  const completedTasks = data.tasks.filter((t) => t.status === "done");
+  const taskStatusSegments = [
+    { label: "To do", count: data.tasks.filter((t) => t.status === "todo").length, color: "#3b82f6" },
+    { label: "In progress", count: data.tasks.filter((t) => t.status === "in_progress").length, color: "#8b5cf6" },
+    { label: "Inbox", count: data.tasks.filter((t) => t.status === "inbox").length, color: "#14b8a6" },
+    { label: "Done", count: completedTasks.length, color: "#22c55e" },
+    { label: "Blocked", count: data.tasks.filter((t) => t.status === "blocked").length, color: "#f59e0b" },
+  ];
+  const taskStatusTotal = taskStatusSegments.reduce((n, item) => n + item.count, 0);
+  const taskStatusGradient = (() => {
+    let cursor = 0;
+    return taskStatusSegments.map((item) => {
+      const start = cursor;
+      cursor += taskStatusTotal ? item.count / taskStatusTotal * 100 : 0;
+      return `${item.color} ${start}% ${cursor}%`;
+    }).join(", ");
+  })();
   const plannedMinutes = plan.taskIds.reduce(
     (n, tid) =>
       n +
@@ -1854,6 +1899,24 @@ export default function DevPilot() {
                   tone="violet"
                 />
               </div>
+              <div className="dashboard-visual-grid">
+                <section className="panel visual-panel">
+                  <div className="panel-heading"><div><h2>Task mix</h2><p>How your current workload is distributed.</p></div><Activity size={18} className="muted-icon" /></div>
+                  <div className="donut-layout">
+                    <div className="donut-chart" style={{ background: `conic-gradient(${taskStatusGradient || "#334155 0% 100%"})` }}><div><strong>{taskStatusTotal}</strong><span>total tasks</span></div></div>
+                    <div className="chart-legend">{taskStatusSegments.filter((x) => x.count > 0).map((x) => <div key={x.label}><i style={{ background: x.color }} /><span>{x.label}</span><strong>{x.count}</strong></div>)}</div>
+                  </div>
+                </section>
+                <section className="panel visual-panel">
+                  <div className="panel-heading"><div><h2>Project momentum</h2><p>Open versus completed tasks by project.</p></div><TrendingUp size={18} className="muted-icon" /></div>
+                  {data.projects.length === 0 && <div className="column-empty">Create a project to see workload insights.</div>}
+                  {data.projects.slice(0, 5).map((project) => {
+                    const counts = projectTaskCounts(project.id);
+                    const total = Math.max(1, counts.open + counts.done);
+                    return <div className="stacked-project-row" key={project.id}><div className="stacked-project-label"><span className="project-dot" style={{ background: project.color }} /><strong>{project.name}</strong><small>{counts.open} open · {counts.done} done</small></div><div className="stacked-track"><span style={{ width: `${counts.open / total * 100}%`, background: project.color }} /><span style={{ width: `${counts.done / total * 100}%`, background: "#22c55e" }} /></div></div>;
+                  })}
+                </section>
+              </div>
               {plannedMinutes > capacity && (
                 <div className="alert alert-danger">
                   <AlertTriangle size={17} />
@@ -2450,7 +2513,9 @@ export default function DevPilot() {
                     "done",
                   ] as TaskStatus[]
                 ).map((status) => {
-                  const tasks = visibleTasks.filter((t) => t.status === status);
+                  const taskLimit = tasksExpanded ? visibleTasks.length : 10;
+                  const shownTaskIds = new Set(visibleTasks.slice(0, taskLimit).map((t) => t.id));
+                  const tasks = visibleTasks.filter((t) => t.status === status && shownTaskIds.has(t.id));
                   return (
                     <div className="task-column" key={status}>
                       <div className="column-heading">
@@ -2562,11 +2627,55 @@ export default function DevPilot() {
                   );
                 })}
               </div>
+              {visibleTasks.length > 10 && (
+                <div className="show-more-wrap">
+                  <span className="muted-copy">
+                    Showing {Math.min(tasksExpanded ? visibleTasks.length : 10, visibleTasks.length)} of {visibleTasks.length} tasks
+                  </span>
+                  <button className="btn btn-secondary" onClick={() => setTasksExpanded((v) => !v)}>
+                    {tasksExpanded ? "Show fewer tasks" : `Show ${visibleTasks.length - 10} more`}
+                  </button>
+                </div>
+              )}
             </>
           )}
 
           {view === "calendar" && (
             <>
+              <section className="panel month-calendar-panel">
+                <div className="month-calendar-header">
+                  <div>
+                    <h2>{calendarMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
+                    <p>Dates with task deadlines are highlighted. Select a day to review or capture work.</p>
+                  </div>
+                  <div className="month-nav">
+                    <button className="btn btn-secondary" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))} aria-label="Previous month">‹</button>
+                    <button className="btn btn-secondary" onClick={() => { const d = new Date(); setCalendarMonth(new Date(d.getFullYear(), d.getMonth(), 1)); setCalendarSelectedDate(today()); }}>Today</button>
+                    <button className="btn btn-secondary" onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))} aria-label="Next month">›</button>
+                  </div>
+                </div>
+                <div className="month-calendar-grid month-calendar-weekdays">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
+                </div>
+                <div className="month-calendar-grid">
+                  {calendarDays.map((day, index) => {
+                    if (!day) return <span className="month-day-empty" key={`empty-${index}`} />;
+                    const dateKey = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                    const dayTasks = tasksByDueDate[dateKey] ?? [];
+                    const isToday = dateKey === today();
+                    return <button key={dateKey} className={cx("month-day", isToday && "is-today", calendarSelectedDate === dateKey && "is-selected", dayTasks.length > 0 && "has-events")} onClick={() => { setCalendarSelectedDate(dateKey); setCaptureDueDate(dateKey); setCaptureStatus("todo"); setCaptureProject(""); setShowCapture(true); }}>
+                      <span>{day}</span>
+                      {dayTasks.length > 0 && <span className="calendar-event-dots">{dayTasks.slice(0,3).map((t) => <i key={t.id} style={{ background: getProject(t.projectId)?.color ?? "#64748b" }} />)}</span>}
+                      {dayTasks.length > 0 && <small>{dayTasks.length} {dayTasks.length === 1 ? "task" : "tasks"}</small>}
+                    </button>;
+                  })}
+                </div>
+                <div className="calendar-selected-summary">
+                  <div><strong>{new Date(`${calendarSelectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}</strong><span>{selectedDateTasks.length} scheduled task{selectedDateTasks.length === 1 ? "" : "s"}</span></div>
+                  <button className="btn btn-primary" onClick={() => { setCaptureDueDate(calendarSelectedDate); setCaptureStatus("todo"); setCaptureProject(""); setShowCapture(true); }}><Plus size={15} /> Add task on this date</button>
+                </div>
+                {selectedDateTasks.length > 0 && <div className="calendar-day-tasks">{selectedDateTasks.map((t) => <button className="attention-row" key={t.id} onClick={() => setSelectedTask(t.id)}><span className="project-dot" style={{ background: getProject(t.projectId)?.color ?? "#64748b" }} /><span><strong>{t.title}</strong><small>{getProject(t.projectId)?.name ?? "Personal"} · {statusLabel[t.status]}</small></span><ChevronRight size={15} /></button>)}</div>}
+              </section>
               <div className="calendar-config panel">
                 <div>
                   <h2>Plan your capacity</h2>
@@ -2973,6 +3082,29 @@ export default function DevPilot() {
                   tone="violet"
                 />
               </div>
+              <div className="dashboard-visual-grid insights-visuals">
+                <section className="panel visual-panel">
+                  <div className="panel-heading"><div><h2>Task status breakdown</h2><p>Composition of all tasks across your workspace.</p></div><Activity size={18} className="muted-icon" /></div>
+                  <div className="donut-layout">
+                    <div className="donut-chart large" style={{ background: `conic-gradient(${taskStatusGradient || "#334155 0% 100%"})` }}><div><strong>{taskStatusTotal}</strong><span>total tasks</span></div></div>
+                    <div className="chart-legend">{taskStatusSegments.map((x) => <div key={x.label}><i style={{ background: x.color }} /><span>{x.label}</span><strong>{x.count}</strong></div>)}</div>
+                  </div>
+                </section>
+                <section className="panel visual-panel">
+                  <div className="panel-heading"><div><h2>Project completion</h2><p>Open and completed tasks compared side by side.</p></div><TrendingUp size={18} className="muted-icon" /></div>
+                  <div className="chart-legend chart-legend-inline"><div><i style={{ background: "#64748b" }} />Open</div><div><i style={{ background: "#22c55e" }} />Completed</div></div>
+                  {data.projects.length === 0 && <div className="column-empty">Add projects and tasks to unlock this view.</div>}
+                  {data.projects.map((project) => {
+                    const counts = projectTaskCounts(project.id);
+                    const total = Math.max(1, counts.open + counts.done);
+                    return <div className="stacked-project-row" key={project.id}><div className="stacked-project-label"><span className="project-dot" style={{ background: project.color }} /><strong>{project.name}</strong><small>{Math.round(counts.done / total * 100)}% complete</small></div><div className="stacked-track"><span style={{ width: `${counts.open / total * 100}%`, background: project.color }} /><span style={{ width: `${counts.done / total * 100}%`, background: "#22c55e" }} /></div></div>;
+                  })}
+                </section>
+              </div>
+              <section className="panel weekly-load-panel">
+                <div className="panel-heading"><div><h2>Deadline activity</h2><p>Open tasks due over the next seven days.</p></div><CalendarDays size={18} className="muted-icon" /></div>
+                <div className="weekly-bars">{Array.from({ length: 7 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() + i); const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`; const count = (tasksByDueDate[key] ?? []).filter((t) => !["done","cancelled"].includes(t.status)).length; const max = Math.max(1, ...Array.from({ length: 7 }, (_, j) => { const d = new Date(); d.setDate(d.getDate()+j); const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; return (tasksByDueDate[k] ?? []).filter((t) => !["done","cancelled"].includes(t.status)).length; })); return <div className="weekly-bar-col" key={key}><strong>{count}</strong><div className="weekly-bar-track"><span style={{ height: `${count ? Math.max(10, count / max * 100) : 3}%` }} /></div><small>{date.toLocaleDateString(undefined, { weekday: "short" })}</small><span>{date.getDate()}</span></div>; })}</div>
+              </section>
               <div className="insights-grid">
                 <div className="panel">
                   <div className="panel-heading">
@@ -3748,6 +3880,10 @@ export default function DevPilot() {
                 ))}
               </select>
             </label>
+            <label>
+              Due date (optional)
+              <input className="field" type="date" value={captureDueDate} onChange={(e) => setCaptureDueDate(e.target.value)} />
+            </label>
             <div className="modal-footer">
               <span className="field-help">
                 <Command size={12} /> Quick capture keeps momentum.
@@ -3810,6 +3946,15 @@ export default function DevPilot() {
                   "#D97706",
                   "#64748B",
                   "#16A34A",
+                  "#DC2626",
+                  "#0891B2",
+                  "#4F46E5",
+                  "#65A30D",
+                  "#9333EA",
+                  "#EA580C",
+                  "#0D9488",
+                  "#C026D3",
+                  "#475569",
                 ].map((c) => (
                   <button
                     type="button"
@@ -3822,6 +3967,16 @@ export default function DevPilot() {
                     onClick={() => setProjectDraft((p) => ({ ...p, color: c }))}
                   />
                 ))}
+              </div>
+              <div className="custom-color-row">
+                <input
+                  aria-label="Choose a custom project colour"
+                  type="color"
+                  value={projectDraft.color}
+                  onChange={(e) => setProjectDraft((p) => ({ ...p, color: e.target.value }))}
+                />
+                <span>Custom colour</span>
+                <code>{projectDraft.color.toUpperCase()}</code>
               </div>
             </label>
             <div className="modal-footer">

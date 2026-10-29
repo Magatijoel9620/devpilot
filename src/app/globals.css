@@ -104,3 +104,89 @@
 .attention-row{transition:background .16s ease,transform .16s ease}
 .attention-row:hover{background:var(--surface-2);transform:translateX(2px)}
 .greeting-banner{border-color:color-mix(in srgb,var(--teal) 20%,var(--line));background:linear-gradient(115deg,var(--surface) 0%,color-mix(in srgb,var(--teal) 7%,var(--surface)) 100%)}
+
+
+/* UI enhancement pack: calendar, project colour picker and data visualisations */
+.custom-color-row{display:flex;align-items:center;gap:10px;margin-top:12px;color:var(--muted,#94a3b8);font-size:12px}
+.custom-color-row input[type=color]{width:38px;height:32px;padding:3px;border:1px solid var(--line,#304438);border-radius:8px;background:transparent;cursor:pointer}
+.custom-color-row code{margin-left:auto;color:var(--text,#e2e8f0);font-size:11px}
+.show-more-wrap{display:flex;justify-content:center;align-items:center;gap:14px;padding:20px 0 8px}
+.muted-copy{font-size:12px;color:var(--muted,#94a3b8)}
+.month-calendar-panel{padding:22px;margin-bottom:22px}
+.month-calendar-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.month-calendar-header h2{margin:0 0 5px;font-size:19px}
+.month-calendar-header p{margin:0;color:var(--muted,#94a3b8);font-size:13px}
+.month-nav{display:flex;align-items:center;gap:8px}
+.month-nav .btn{min-width:38px;padding:8px 12px}
+.month-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px}
+.month-calendar-weekdays{margin-bottom:7px}
+.month-calendar-weekdays span{text-align:center;padding:8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted,#94a3b8)}
+.month-day-empty{min-height:82px}
+.month-day{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-height:82px;padding:10px;border:1px solid var(--border,rgba(148,163,184,.18));border-radius:12px;background:var(--surface-2,rgba(148,163,184,.035));color:var(--text,#e2e8f0);text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.month-day:hover{border-color:var(--teal,#83c5a5);background:rgba(20,184,166,.08)}
+.month-day>span:first-child{font-size:13px;font-weight:700}
+.month-day small{font-size:10px;color:var(--muted,#94a3b8)}
+.month-day.is-today>span:first-child{display:grid;place-items:center;width:25px;height:25px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--teal,#83c5a5);color:white}
+.month-day.is-selected{border-color:var(--teal,#83c5a5);box-shadow:inset 0 0 0 1px var(--teal,#83c5a5)}
+.month-day.has-events{background:rgba(20,184,166,.07)}
+.calendar-event-dots{display:flex;gap:4px}
+.calendar-event-dots i{display:block;width:6px;height:6px;border-radius:50%}
+.calendar-selected-summary{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,rgba(148,163,184,.18))}
+.calendar-selected-summary>div{display:flex;flex-direction:column;gap:4px}
+.calendar-selected-summary strong{font-size:13px}
+.calendar-selected-summary span{font-size:12px;color:var(--muted,#94a3b8)}
+.calendar-day-tasks{margin-top:10px}
+.dashboard-visual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:20px 0}
+.visual-panel{padding:20px;min-width:0}
+.visual-panel .panel-heading{margin-bottom:18px}
+.donut-layout{display:flex;align-items:center;justify-content:center;gap:28px;min-height:175px}
+.donut-chart{width:156px;height:156px;flex:0 0 156px;border-radius:50%;display:grid;place-items:center;position:relative}
+.donut-chart:before{content:"";position:absolute;inset:24px;border-radius:50%;background:var(--surface,#17221b)}
+.donut-chart>div{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px}
+.donut-chart strong{font-size:27px;line-height:1.1}
+.donut-chart>div span{font-size:10px;color:var(--muted,#94a3b8)}
+.donut-chart.large{width:174px;height:174px;flex-basis:174px}
+.donut-chart.large:before{inset:27px}
+.chart-legend{display:flex;flex-direction:column;gap:11px;min-width:100px;flex:1}
+.chart-legend>div{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted,#94a3b8)}
+.chart-legend i{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
+.chart-legend strong{margin-left:auto;color:var(--text,#e2e8f0);font-size:12px}
+.chart-legend-inline{flex-direction:row;flex-wrap:wrap;margin-bottom:18px}
+.stacked-project-row{margin:14px 0}
+.stacked-project-label{display:flex;align-items:center;gap:7px;margin-bottom:8px;min-width:0}
+.stacked-project-label strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stacked-project-label small{margin-left:auto;color:var(--muted,#94a3b8);font-size:10px;white-space:nowrap}
+.stacked-track{display:flex;height:9px;overflow:hidden;border-radius:99px;background:rgba(148,163,184,.13)}
+.stacked-track span{display:block;height:100%;min-width:0;transition:width .2s}
+.weekly-load-panel{padding:22px;margin:18px 0}
+.weekly-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;height:175px;padding-top:10px}
+.weekly-bar-col{display:flex;align-items:center;flex-direction:column;gap:5px;min-width:0}
+.weekly-bar-col strong{font-size:12px}
+.weekly-bar-track{display:flex;align-items:flex-end;justify-content:center;width:100%;flex:1;max-width:48px;border-radius:8px;background:rgba(148,163,184,.08);overflow:hidden}
+.weekly-bar-track span{display:block;width:100%;min-height:3px;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#2dd4bf,#0f766e)}
+.weekly-bar-col small{font-size:10px;color:var(--muted,#94a3b8)}
+.weekly-bar-col>span{font-size:11px;font-weight:700}
+@media(max-width:760px){
+ .dashboard-visual-grid{grid-template-columns:1fr;gap:12px;margin:14px 0}
+ .month-calendar-panel{padding:13px}
+ .month-calendar-header{align-items:flex-start;flex-direction:column}
+ .month-nav{align-self:stretch}
+ .month-nav .btn{flex:1}
+ .month-calendar-grid{gap:4px}
+ .month-day-empty{min-height:57px}
+ .month-day{min-height:57px;padding:6px;border-radius:8px;gap:5px}
+ .month-day small{font-size:9px}
+ .month-calendar-weekdays span{font-size:9px}
+ .calendar-selected-summary{align-items:flex-start;flex-direction:column}
+ .calendar-selected-summary .btn{width:100%;justify-content:center}
+ .donut-layout{gap:16px}
+ .donut-chart{width:126px;height:126px;flex-basis:126px}
+ .donut-chart:before{inset:20px}
+ .donut-chart.large{width:140px;height:140px;flex-basis:140px}
+ .donut-chart.large:before{inset:22px}
+ .donut-chart strong{font-size:22px}
+ .chart-legend{gap:8px}
+ .weekly-bars{gap:6px}
+ .stacked-project-label{flex-wrap:wrap}
+ .stacked-project-label small{font-size:9px}
+}

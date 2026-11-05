@@ -29,6 +29,7 @@ import {
   Menu,
   Moon,
   MoreHorizontal,
+  PanelLeftOpen,
   PanelLeftClose,
   Plus,
   Rocket,
@@ -210,6 +211,9 @@ export default function DevPilot() {
   const [showReview, setShowReview] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [projectMenuId, setProjectMenuId] = useState<string | null>(null);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const [dark, setDark] = useState(true);
@@ -713,6 +717,18 @@ export default function DevPilot() {
   };
   const addProject = () => {
     if (!projectDraft.name.trim()) return;
+    if (editingProjectId) {
+      updateProject(editingProjectId, {
+        name: projectDraft.name.trim(),
+        description: projectDraft.description,
+        color: projectDraft.color,
+      });
+      setEditingProjectId(null);
+      setProjectDraft({ name: "", description: "", color: "#0F766E" });
+      setShowProjectForm(false);
+      notify("Project updated");
+      return;
+    }
     const p: Project = {
       id: id("project"),
       name: projectDraft.name.trim(),
@@ -1510,7 +1526,7 @@ export default function DevPilot() {
     );
 
   return (
-    <main className={cx("app-shell", dark ? "theme-dark" : "theme-light")}>
+    <main className={cx("app-shell", dark ? "theme-dark" : "theme-light", sidebarCollapsed && "sidebar-collapsed")}>
       <aside className={cx("sidebar", mobileNav && "sidebar-open")}>
         <div className="brand-row">
           <div className="brand-mark brand-logo">
@@ -1526,6 +1542,14 @@ export default function DevPilot() {
             onClick={() => setMobileNav(false)}
           >
             <PanelLeftClose size={17} />
+          </button>
+          <button
+            className="icon-btn sidebar-rail-toggle"
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={() => setSidebarCollapsed((value) => !value)}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           </button>
         </div>
         <button className="capture-button" onClick={() => setShowCapture(true)}>
@@ -1548,6 +1572,7 @@ export default function DevPilot() {
                 <button
                   key={v}
                   className={cx("nav-item", view === v && "active")}
+                  title={viewMeta[v].title}
                   onClick={() => {
                     if (v === "projects") setSelectedProject("all");
                     setViewAndClose(v);
@@ -1574,7 +1599,6 @@ export default function DevPilot() {
         <div className="project-nav">
           {data.projects
             .filter((p) => p.status !== "archived")
-            .slice(0, 7)
             .map((p) => (
               <button
                 key={p.id}
@@ -1582,6 +1606,7 @@ export default function DevPilot() {
                   "project-nav-item",
                   selectedProject === p.id && view === "projects" && "active",
                 )}
+                title={p.name}
                 onClick={() => {
                   setSelectedProject(p.id);
                   setViewAndClose("projects");
@@ -1707,6 +1732,15 @@ export default function DevPilot() {
             >
               <Bell size={17} />
               {overdue.length > 0 && <i />}
+            </button>
+            <button
+              className={cx("icon-btn inbox-top-btn", view === "inbox" && "active")}
+              onClick={() => setViewAndClose("inbox")}
+              aria-label={`Open inbox${data.tasks.some((t) => t.status === "inbox") ? ", unread items" : ""}`}
+              title="Inbox"
+            >
+              <Inbox size={17} />
+              {data.tasks.some((t) => t.status === "inbox") && <i />}
             </button>
             <div className="avatar-menu-wrap" ref={avatarMenuRef}>
               <button
@@ -2380,26 +2414,29 @@ export default function DevPilot() {
                           >
                             <FolderKanban size={21} />
                           </div>
-                          <button
-                            className="icon-btn small"
-                            onClick={() =>
-                              updateProject(p.id, {
-                                status:
-                                  p.status === "active" ? "paused" : "active",
-                              })
-                            }
-                            title={
-                              p.status === "active"
-                                ? "Pause project"
-                                : "Resume project"
-                            }
-                          >
-                            {p.status === "active" ? (
-                              <Pause size={15} />
-                            ) : (
-                              <Play size={15} />
+                          <div className="project-card-menu-wrap">
+                            <button
+                              className="icon-btn small"
+                              aria-label={`More options for ${p.name}`}
+                              aria-expanded={projectMenuId === p.id}
+                              onClick={() => setProjectMenuId((current) => current === p.id ? null : p.id)}
+                              title="Project options"
+                            ><MoreHorizontal size={17} /></button>
+                            {projectMenuId === p.id && (
+                              <div className="project-card-menu" role="menu">
+                                <button role="menuitem" onClick={() => {
+                                  setEditingProjectId(p.id);
+                                  setProjectDraft({ name: p.name, description: p.description, color: p.color });
+                                  setProjectMenuId(null);
+                                  setShowProjectForm(true);
+                                }}><FileText size={14} /> Edit project</button>
+                                <button role="menuitem" onClick={() => {
+                                  updateProject(p.id, { status: p.status === "active" ? "paused" : "active" });
+                                  setProjectMenuId(null);
+                                }}>{p.status === "active" ? <Pause size={14} /> : <Play size={14} />}{p.status === "active" ? "Pause project" : "Resume project"}</button>
+                              </div>
                             )}
-                          </button>
+                          </div>
                         </div>
                         <div className="project-card-title">
                           <h3>{p.name}</h3>
@@ -3897,9 +3934,9 @@ export default function DevPilot() {
       )}
       {showProjectForm && (
         <Modal
-          title="Create a project"
-          subtitle="Give this work a home and a clear next action."
-          onClose={() => setShowProjectForm(false)}
+          title={editingProjectId ? "Edit project" : "Create a project"}
+          subtitle={editingProjectId ? "Update the details and keep the project moving." : "Give this work a home and a clear next action."}
+          onClose={() => { setShowProjectForm(false); setEditingProjectId(null); setProjectDraft({ name: "", description: "", color: "#0F766E" }); }}
         >
           <form
             className="form-stack"
@@ -3983,12 +4020,12 @@ export default function DevPilot() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setShowProjectForm(false)}
+                onClick={() => { setShowProjectForm(false); setEditingProjectId(null); setProjectDraft({ name: "", description: "", color: "#0F766E" }); }}
               >
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary">
-                <Plus size={15} /> Create project
+                {editingProjectId ? <Check size={15} /> : <Plus size={15} />} {editingProjectId ? "Save changes" : "Create project"}
               </button>
             </div>
           </form>
@@ -4288,9 +4325,9 @@ export default function DevPilot() {
         {(
           [
             { id: "today", label: "Today", icon: Target },
-            { id: "inbox", label: "Inbox", icon: Inbox },
             { id: "projects", label: "Projects", icon: FolderKanban },
             { id: "tasks", label: "Tasks", icon: ListTodo },
+            { id: "calendar", label: "Calendar", icon: CalendarDays },
             { id: "settings", label: "Settings", icon: Settings },
           ] as const
         ).map((item) => {
@@ -4307,8 +4344,7 @@ export default function DevPilot() {
             >
               <Icon size={19} />
               <span>{item.label}</span>
-              {item.id === "inbox" &&
-                data.tasks.some((t) => t.status === "inbox") && <i />}
+
             </button>
           );
         })}
@@ -4324,7 +4360,13 @@ export default function DevPilot() {
           <div className="brand-mark brand-logo">
             <Image src="/HG.png" alt="Hempon Group" width={1254} height={1254} />
           </div>
-          <LoaderCircle size={20} className="spin" /> Preparing your workspace…
+          <div className="loading-skeleton-content" aria-hidden="true">
+            <div className="skeleton-line skeleton-line-wide" />
+            <div className="skeleton-line skeleton-line-short" />
+            <div className="skeleton-card-row"><i /><i /><i /></div>
+            <div className="skeleton-line skeleton-line-medium" />
+          </div>
+          <div className="loading-label"><LoaderCircle size={18} className="spin" /> Preparing your workspace…</div>
         </div>
       )}
     </main>
